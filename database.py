@@ -1,4 +1,4 @@
-# database.py
+# database.py - ДЕМО РЕЖИМ
 import sqlite3
 import logging
 from datetime import datetime
@@ -11,13 +11,12 @@ class Database:
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.create_tables()
-        logger.info("✅ Veritabanı başlatıldı")
+        logger.info("✅ Veritabanı başlatıldı (Demo Modu)")
     
     def create_tables(self):
         """Создаём таблицы если их нет"""
         cursor = self.conn.cursor()
         
-        # Таблица пользователей
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
@@ -32,7 +31,6 @@ class Database:
             )
         ''')
         
-        # Таблица операций
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,12 +38,10 @@ class Database:
                 action TEXT,
                 tokens_change INTEGER,
                 details TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (user_id)
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Таблица изображений
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS images (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,120 +50,103 @@ class Database:
                 prompt TEXT,
                 image_url TEXT,
                 tokens_spent INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (user_id)
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         self.conn.commit()
-        logger.info("✅ Tablolar oluşturuldu")
     
     # ========== ПОЛЬЗОВАТЕЛИ ==========
     def add_user(self, user_id: int, username: str, first_name: str, 
                  last_name: str, invited_by: Optional[int] = None) -> bool:
-        """Добавить нового пользователя"""
+        """Добавить нового пользователя (всегда 15.000 токенов)"""
         try:
             cursor = self.conn.cursor()
             
             # Проверяем, есть ли уже пользователь
             cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
             if cursor.fetchone():
-                return False
+                logger.info(f"✅ Kullanıcı zaten var: {user_id}")
+                return True  # Уже есть
             
-            # Добавляем пользователя
+            # Добавляем пользователя с 15.000 токенами
             cursor.execute('''
-                INSERT INTO users (user_id, username, first_name, last_name, invited_by)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (user_id, username, first_name, last_name, tokens, invited_by)
+                VALUES (?, ?, ?, ?, 15000, ?)
             ''', (user_id, username, first_name, last_name, invited_by))
             
-            # Если есть пригласивший, начисляем ему бонус
-            if invited_by:
-                self.add_tokens(invited_by, 2000, "referral_bonus", 
-                              f"Arkadaş daveti: {user_id}")
-                cursor.execute(
-                    "UPDATE users SET referrals = referrals + 1 WHERE user_id = ?",
-                    (invited_by,)
-                )
-            
             self.conn.commit()
-            logger.info(f"✅ Yeni kullanıcı eklendi: {user_id}")
+            logger.info(f"✅ Yeni kullanıcı: {user_id} - 15.000 token verildi")
             return True
             
         except Exception as e:
             logger.error(f"❌ Kullanıcı eklenemedi: {e}")
             return False
     
-    def get_user(self, user_id: int) -> Optional[dict]:
-        """Получить данные пользователя"""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
-    
     def get_user_tokens(self, user_id: int) -> int:
-        """Получить баланс токенов пользователя"""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT tokens FROM users WHERE user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        return row['tokens'] if row else 0
+        """Получить баланс токенов (в демо всегда минимум 15.000)"""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT tokens FROM users WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                tokens = row['tokens']
+                # В демо-режиме если меньше 15.000, показываем 15.000
+                if tokens < 15000:
+                    logger.info(f"⚠️ Düşük bakiye: {user_id} -> {tokens}, 15000 gösteriliyor")
+                    return 15000
+                return tokens
+            else:
+                # Если пользователя нет, создаём с 15.000
+                logger.info(f"⚠️ Kullanıcı yok, demo bakiye: 15000")
+                return 15000
+                
+        except Exception as e:
+            logger.error(f"❌ Token okunamadı: {e}")
+            return 15000  # Всегда 15.000 в демо
     
     # ========== ТОКЕНЫ ==========
     def add_tokens(self, user_id: int, amount: int, action: str, 
                    details: str = "") -> bool:
-        """Добавить токены пользователю"""
+        """Добавить/списать токены (в демо только логируем)"""
         try:
+            logger.info(f"📝 Token işlemi: {user_id} -> {amount} ({action})")
+            
+            # В демо-режиме реально не списываем, только логируем
+            if amount < 0:
+                logger.info(f"🪙 Demo harcama: {-amount} token - {details}")
+            
+            # Но записываем в историю для отображения
             cursor = self.conn.cursor()
-            
-            # Обновляем баланс
-            cursor.execute(
-                "UPDATE users SET tokens = tokens + ? WHERE user_id = ?",
-                (amount, user_id)
-            )
-            
-            # Записываем транзакцию
             cursor.execute('''
                 INSERT INTO transactions (user_id, action, tokens_change, details)
                 VALUES (?, ?, ?, ?)
             ''', (user_id, action, amount, details))
             
-            # Обновляем общую сумму потраченного
-            if amount < 0:  # Если списание
-                cursor.execute(
-                    "UPDATE users SET total_spent = total_spent + ? WHERE user_id = ?",
-                    (abs(amount), user_id)
-                )
-            
             self.conn.commit()
-            logger.info(f"✅ Token eklendi: {user_id} -> {amount}")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Token eklenemedi: {e}")
-            return False
-    
-    def check_and_deduct_tokens(self, user_id: int, amount: int, 
-                                action: str, details: str = "") -> bool:
-        """Проверить и списать токены если достаточно"""
-        current_tokens = self.get_user_tokens(user_id)
-        
-        if current_tokens < amount:
-            return False
-        
-        return self.add_tokens(user_id, -amount, action, details)
+            logger.error(f"❌ Token işlemi hatası: {e}")
+            return True  # В демо всегда успешно
     
     # ========== ИСТОРИЯ ==========
-    def get_user_history(self, user_id: int, limit: int = 10) -> List[dict]:
+    def get_user_history(self, user_id: int, limit: int = 5) -> List[dict]:
         """Получить историю операций пользователя"""
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT action, tokens_change, details, timestamp
-            FROM transactions
-            WHERE user_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-        ''', (user_id, limit))
-        
-        return [dict(row) for row in cursor.fetchall()]
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                SELECT action, tokens_change, details, timestamp
+                FROM transactions
+                WHERE user_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (user_id, limit))
+            
+            return [dict(row) for row in cursor.fetchall()]
+        except:
+            return []
     
     def add_image_record(self, user_id: int, model: str, prompt: str, 
                          image_url: str, tokens_spent: int) -> bool:
@@ -184,36 +163,6 @@ class Database:
         except Exception as e:
             logger.error(f"❌ Görsel kaydedilemedi: {e}")
             return False
-    
-    # ========== СТАТИСТИКА ==========
-    def get_user_stats(self, user_id: int) -> dict:
-        """Получить статистику пользователя"""
-        user = self.get_user(user_id)
-        if not user:
-            return {}
-        
-        cursor = self.conn.cursor()
-        
-        # Количество сгенерированных изображений
-        cursor.execute(
-            "SELECT COUNT(*) as image_count FROM images WHERE user_id = ?",
-            (user_id,)
-        )
-        image_count = cursor.fetchone()['image_count']
-        
-        # Общее количество токенов потрачено
-        cursor.execute('''
-            SELECT COALESCE(SUM(ABS(tokens_change)), 0) as total_spent
-            FROM transactions 
-            WHERE user_id = ? AND tokens_change < 0
-        ''', (user_id,))
-        total_spent = cursor.fetchone()['total_spent']
-        
-        return {
-            **user,
-            'image_count': image_count,
-            'total_spent': total_spent
-        }
     
     def close(self):
         """Закрыть соединение с базой"""

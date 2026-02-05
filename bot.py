@@ -1,4 +1,4 @@
-# bot.py - УПРОЩЕННАЯ ВЕРСИЯ С NANO BANANA
+# bot.py - NANO BANANA BOT (DEMO)
 import os
 import logging
 from dotenv import load_dotenv
@@ -35,24 +35,16 @@ db = Database()
 # ==================== КЛАВИАТУРЫ ====================
 def main_menu():
     keyboard = [
-        [InlineKeyboardButton("🌄 Fotoğraf Oluştur", callback_data="menu_image")],
-        [InlineKeyboardButton("💬 Dil Modelleri", callback_data="menu_llm")],
-        [InlineKeyboardButton("💰 Bakiye", callback_data="balance")],
-        [InlineKeyboardButton("📊 Geçmişim", callback_data="history")],
-        [InlineKeyboardButton("🎁 Davet Et", callback_data="invite")],
+        [InlineKeyboardButton("🍌 Nano Banana - Görsel Oluştur", callback_data="menu_image")],
+        [InlineKeyboardButton("💰 Bakiye Sorgula", callback_data="balance")],
+        [InlineKeyboardButton("📊 İşlem Geçmişi", callback_data="history")],
+        [InlineKeyboardButton("🎁 Arkadaş Davet", callback_data="invite")],
         [InlineKeyboardButton("ℹ️ Yardım", callback_data="help")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def image_generation_menu():
-    keyboard = [
-        [InlineKeyboardButton("🍌 Nano Banana - Görsel Oluştur", callback_data="image_nano")],
-        [InlineKeyboardButton("🔙 Geri", callback_data="back_to_main")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
 def back_button():
-    keyboard = [[InlineKeyboardButton("🔙 Geri", callback_data="back_to_main")]]
+    keyboard = [[InlineKeyboardButton("🔙 Ana Menü", callback_data="back_to_main")]]
     return InlineKeyboardMarkup(keyboard)
 
 def cancel_button():
@@ -72,7 +64,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
-    # Добавляем пользователя в базу
+    # Добавляем пользователя в базу (15.000 токенов)
     db.add_user(
         user_id=user.id,
         username=user.username,
@@ -81,13 +73,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         invited_by=invited_by
     )
     
-    # Получаем баланс
+    # Получаем баланс (всегда 15.000+ в демо)
     tokens = db.get_user_tokens(user.id)
     
-    welcome_text = f"👋 Merhaba {user.first_name}! Bakiyende {tokens:,} token var"
+    welcome_text = (
+        f"👋 Merhaba {user.first_name or ''}!\n"
+        f"🤖 **Nano Banana AI Bot**'a hoş geldin!\n\n"
+        f"💰 **Başlangıç bakiyen:** {tokens:,} token\n"
+        f"🎨 Her görsel: 100 token\n\n"
+        f"👇 Aşağıdaki menüden seçim yapın:"
+    )
     
     await update.message.reply_text(
-        f"{welcome_text}\n\n👇 Aşağıdaki menüden bir seçenek seçin:",
+        welcome_text,
         reply_markup=main_menu(),
         parse_mode="HTML"
     )
@@ -98,9 +96,11 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tokens = db.get_user_tokens(user_id)
     
     await update.message.reply_text(
-        f"💰 <b>Bakiye:</b> {tokens:,} token\n\n"
-        f"🍌 Nano Banana: 100 token/görsel\n\n"
-        f"Token paketleri yakında gelecek!",
+        f"💰 **Bakiye Durumu**\n\n"
+        f"🪙 Mevcut token: **{tokens:,}**\n"
+        f"🍌 Nano Banana: **100 token** / görsel\n\n"
+        f"💡 Her yeni kullanıcı 15.000 ücretsiz token alır!\n"
+        f"👥 Arkadaş davet et, ekstra token kazan!",
         reply_markup=back_button(),
         parse_mode="HTML"
     )
@@ -108,28 +108,28 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Помощь"""
     help_text = """
-🤖 <b>Nano Banana AI Bot</b>
+🤖 **Nano Banana AI Bot - Yardım**
 
-<b>Nasıl Kullanılır:</b>
-1. "Fotoğraf Oluştur" butonuna tıklayın
-2. "Nano Banana" seçin
-3. Görsel açıklaması yazın
-4. 100 token ödeyin
-5. Görselinizi alın!
+🎨 **Görsel Oluşturma:**
+1. Ana menüden "Nano Banana" seç
+2. Görsel açıklaması yaz (Türkçe/İngilizce)
+3. 100 token öde
+4. Görselini al!
 
-<b>Örnek Prompt'lar:</b>
+💡 **Örnek Açıklamalar:**
 • "Gün batımında İstanbul"
-• "Kedi ve köpek arkadaş olmuş"
 • "Futbol oynayan robot"
 • "Uzayda Türk bayrağı"
+• "Orman içinde şelale"
 
-<b>Token:</b>
-• Yeni kullanıcı: 15.000 ücretsiz token
+🪙 **Token Sistemi:**
+• Başlangıç: 15.000 ücretsiz token
 • Her görsel: 100 token
-• Bakiye: /balance
+• Bakiye kontrol: /balance
 
-<b>Demo Modu:</b>
-Şu anda test aşamasındadır.
+🚀 **Demo Modu:**
+Şu anda test aşamasındayız.
+Gerçek AI API bağlantısı yakında eklenecek!
     """
     
     await update.message.reply_text(
@@ -151,7 +151,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back_to_main":
         tokens = db.get_user_tokens(user_id)
         await query.edit_message_text(
-            text=f"👋 Ana menüye hoş geldiniz!\n💰 Bakiye: {tokens:,} token\n\n👇 Seçiminizi yapın:",
+            text=f"🏠 **Ana Menü**\n\n💰 Bakiye: {tokens:,} token\n\n👇 Seçiminizi yapın:",
             reply_markup=main_menu(),
             parse_mode="HTML"
         )
@@ -159,24 +159,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_image":
         tokens = db.get_user_tokens(user_id)
         await query.edit_message_text(
-            text=f"🌄 <b>Fotoğraf Oluşturma</b>\n\n"
-                 f"🍌 <b>Nano Banana</b> - AI ile görsel oluşturma\n"
-                 f"🪙 Fiyat: 100 token/görsel\n"
-                 f"💰 Bakiye: {tokens:,} token\n\n"
-                 f"Hemen bir görsel oluşturmak için butona tıklayın:",
-            reply_markup=image_generation_menu(),
+            text=f"🎨 **Nano Banana - AI Görsel Oluşturucu**\n\n"
+                 f"🪙 Fiyat: **100 token** / görsel\n"
+                 f"💰 Bakiye: **{tokens:,} token**\n\n"
+                 f"**Hemen bir görsel oluşturmak için butona tıklayın:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🍌 GÖRSEL OLUŞTUR", callback_data="generate_image")],
+                [InlineKeyboardButton("🔙 Ana Menü", callback_data="back_to_main")]
+            ]),
             parse_mode="HTML"
         )
     
-    elif data == "image_nano":
-        await handle_nano_selection(query, user_id)
+    elif data == "generate_image":
+        await handle_generate_image(query, user_id)
     
     elif data == "balance":
         tokens = db.get_user_tokens(user_id)
         await query.edit_message_text(
-            text=f"💰 <b>Bakiye:</b> {tokens:,} token\n\n"
-                 f"🍌 Nano Banana: 100 token/görsel\n\n"
-                 f"Token paketleri yakında gelecek!",
+            text=f"💰 **Bakiye Durumu**\n\n"
+                 f"🪙 Mevcut token: **{tokens:,}**\n"
+                 f"🍌 Nano Banana: **100 token** / görsel\n\n"
+                 f"💡 Yeni özellikler yakında!",
             reply_markup=back_button(),
             parse_mode="HTML"
         )
@@ -186,32 +189,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if not history:
             await query.edit_message_text(
-                "📭 Henüz işlem geçmişiniz yok.",
+                "📭 Henüz işlem geçmişiniz yok.\nİlk görselinizi oluşturun!",
                 reply_markup=back_button()
             )
             return
         
-        text = "📊 <b>Son İşlemleriniz:</b>\n\n"
+        text = "📊 **Son İşlemleriniz:**\n\n"
         for item in history[:5]:
             action = item['action']
             tokens_change = item['tokens_change']
             details = item['details'][:30] if item['details'] else ""
             
-            text += f"• {action}\n"
-            text += f"  🪙 {tokens_change:+d} token\n"
+            emoji = "🔼" if tokens_change > 0 else "🔽"
+            text += f"{emoji} **{action}**\n"
+            text += f"   🪙 {tokens_change:+d} token\n"
             if details:
-                text += f"  📝 {details}...\n"
+                text += f"   📝 {details}...\n"
             text += f"\n"
         
         await query.edit_message_text(
             text,
-            reply_markup=back_button(),
-            parse_mode="HTML"
-        )
-    
-    elif data == "menu_llm":
-        await query.edit_message_text(
-            text="💬 <b>Dil Modelleri</b>\n\nChatGPT, Gemini, Claude yakında eklenecek!",
             reply_markup=back_button(),
             parse_mode="HTML"
         )
@@ -221,90 +218,70 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ref_link = f"https://t.me/{bot_username}?start={user_id}"
         
         await query.edit_message_text(
-            text=f"🎁 <b>Arkadaşını Davet Et</b>\n\n"
-                 f"Davet Linkin:\n<code>{ref_link}</code>\n\n"
-                 f"Her davet için: 2.000 token bonus!\n"
-                 f"Şu ana kadar: 0 kişi davet ettiniz.",
+            text=f"🎁 **Arkadaşını Davet Et**\n\n"
+                 f"**Davet Linkin:**\n`{ref_link}`\n\n"
+                 f"✅ **Her davet için:** 2.000 token bonus!\n"
+                 f"✅ **Arkadaşın satın alımından:** %20 komisyon\n\n"
+                 f"📈 **Şu ana kadar:** 0 kişi davet ettiniz\n"
+                 f"🪙 **Kazandığın token:** 0",
             reply_markup=back_button(),
             parse_mode="HTML"
         )
     
     elif data == "help":
-        await help_command_callback(query)
+        await query.edit_message_text(
+            text=help_command.__doc__.replace("    ", ""),
+            reply_markup=back_button(),
+            parse_mode="HTML"
+        )
     
     elif data == "cancel":
         await query.edit_message_text(
-            text="❌ İşlem iptal edildi. Ana menüye dönülüyor...",
+            text="❌ İşlem iptal edildi. Ana menüye yönlendiriliyorsunuz...",
             reply_markup=back_button()
         )
 
-async def handle_nano_selection(query, user_id):
-    """Обработка выбора Nano Banana"""
+async def handle_generate_image(query, user_id):
+    """Обработка запроса на генерацию изображения"""
     price = 100
     user_tokens = db.get_user_tokens(user_id)
     
     if user_tokens < price:
         await query.edit_message_text(
-            text=f"❌ Yeterli token'ın yok!\n\n"
+            text=f"❌ **Yeterli token'ın yok!**\n\n"
                  f"🍌 Nano Banana: {price} token\n"
                  f"💰 Mevcut bakiye: {user_tokens} token\n\n"
-                 f"Token satın almak için /balance yazın\n"
-                 f"Veya ücretsiz token için arkadaş davet edin.",
+                 f"💡 Ücretsiz token almak için:\n"
+                 f"• Arkadaş davet et (/start link gönder)\n"
+                 f"• Token paketleri (yakında)",
             reply_markup=back_button()
         )
         return
     
     await query.edit_message_text(
-        text=f"🍌 <b>Nano Banana - Görsel Oluşturucu</b>\n\n"
-             f"🪙 Fiyat: {price} token\n"
-             f"💰 Bakiye: {user_tokens} token\n\n"
-             f"<b>Şimdi görsel açıklaması yazın:</b>\n"
+        text=f"🎨 **Görsel Açıklaması Yazın**\n\n"
+             f"🍌 **Nano Banana** AI görsel oluşturucu\n"
+             f"🪙 **Fiyat:** {price} token\n"
+             f"💰 **Bakiye:** {user_tokens:,} token\n\n"
+             f"**Lütfen istediğiniz görseli tarif edin:**\n"
              f"Örnekler:\n"
-             f"• 'Gün batımında İstanbul'\n"
-             f"• 'Futbol oynayan robot'\n"
-             f"• 'Uzayda Türk bayrağı'\n\n"
-             f"<i>Lütfen bir mesaj olarak gönderin...</i>",
+             f"• 'Gün batımında İstanbul manzarası'\n"
+             f"• 'Robot elma yiyor'\n"
+             f"• 'Deniz kenarında romantik çift'\n\n"
+             f"✍️ **Açıklamanızı mesaj olarak gönderin...**",
         reply_markup=cancel_button(),
-        parse_mode="HTML"
-    )
-
-async def help_command_callback(query):
-    """Callback для помощи"""
-    help_text = """
-🤖 <b>Nano Banana AI Bot</b>
-
-<b>Kullanım:</b>
-1. Ana menüden "Fotoğraf Oluştur"
-2. "Nano Banana - Görsel Oluştur" butonu
-3. Görsel açıklaması yazın
-4. 100 token ödeyin
-5. Görselinizi alın!
-
-<b>Token:</b>
-• Herkes: 15.000 ücretsiz token
-• Her görsel: 100 token
-• Bakiye kontrol: /balance
-
-<b>Demo:</b>
-Şu anda test aşamasında.
-Gerçek API bağlantısı yakında!
-    """
-    
-    await query.edit_message_text(
-        help_text,
-        reply_markup=back_button(),
         parse_mode="HTML"
     )
 
 # ==================== ОБРАБОТКА ПРОМПТОВ ====================
 async def handle_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка промпта для Nano Banana"""
+    """Обработка промпта для генерации изображения"""
     user_id = update.effective_user.id
     prompt = update.message.text.strip()
     
     if len(prompt) < 3:
         await update.message.reply_text(
-            "❌ Lütfen en az 3 karakterlik bir açıklama yazın.",
+            "❌ Lütfen en az 3 karakterlik bir açıklama yazın.\nÖrnek: 'Güneşli bir gün'",
             reply_markup=back_button()
         )
         return
@@ -312,71 +289,88 @@ async def handle_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = 100
     user_tokens = db.get_user_tokens(user_id)
     
+    # Проверка баланса (в демо всегда должно хватать)
     if user_tokens < price:
         await update.message.reply_text(
-            f"❌ Yeterli token'ın yok!\n"
-            f"Gereken: {price}, Mevcut: {user_tokens}",
+            f"⚠️ **Demo Modu Uyarısı**\n\n"
+            f"Normalde {price} token gerekiyor.\n"
+            f"Ama demo modunda devam ediyoruz!\n\n"
+            f"⏳ Görsel oluşturuluyor...",
             reply_markup=back_button()
         )
-        return
     
     # Сообщение о начале генерации
     processing_msg = await update.message.reply_text(
-        "⏳ Nano Banana ile görsel oluşturuluyor...\nLütfen 10-20 saniye bekleyin.",
+        "⏳ **Nano Banana görsel oluşturuyor...**\n"
+        "Lütfen 5-10 saniye bekleyin.",
         reply_markup=None
     )
     
     try:
-        import os
-        
-        # Генерируем изображение
-        image_path, tokens_spent, error = image_gen.generate_image(
+        # Генерируем изображение (демо-режим)
+        image_url, tokens_spent, error = image_gen.generate_image(
             prompt=prompt,
             model_type="nano"
         )
         
-        # Списание токенов
-        db.add_tokens(user_id, -tokens_spent, "nano_banana", prompt[:50])
+        if error:
+            await processing_msg.edit_text(
+                f"⚠️ Demo: {error}\n\nGörsel gönderiliyor...",
+                reply_markup=back_button()
+            )
+        
+        # "Списываем" токены (в демо только логируем)
+        db.add_tokens(user_id, -tokens_spent, "image_generation", 
+                     f"Nano Banana: {prompt[:50]}...")
         
         # Добавляем запись в базу
-        db.add_image_record(user_id, "🍌 Nano Banana", prompt, "local_file", tokens_spent)
+        db.add_image_record(user_id, "🍌 Nano Banana", prompt, image_url, tokens_spent)
         
         # Отправляем изображение
-        if os.path.exists(image_path):
-            with open(image_path, 'rb') as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=f"🎨 <b>🍌 Nano Banana</b>\n\n"
-                           f"📝 <b>Açıklama:</b> {prompt}\n"
-                           f"🪙 <b>Token:</b> {tokens_spent}\n"
-                           f"💰 <b>Kalan bakiye:</b> {db.get_user_tokens(user_id):,}\n\n"
-                           f"<i>Demo modu - Gerçek API yakında!</i>\n"
-                           f"Yeni görsel için /start",
-                    parse_mode="HTML",
-                    reply_markup=back_button()
-                )
-            
-            # Удаляем временный файл
-            try:
-                os.remove(image_path)
-            except:
-                pass
+        await update.message.reply_photo(
+            photo=image_url,
+            caption=f"🎨 **🍌 Nano Banana**\n\n"
+                   f"📝 **Açıklama:** {prompt}\n"
+                   f"🪙 **Harcanan token:** {tokens_spent}\n"
+                   f"💰 **Kalan bakiye:** {db.get_user_tokens(user_id):,}\n\n"
+                   f"⭐ **Demo Modu** - Gerçek AI API yakında!\n"
+                   f"🔄 Yeni görsel için /start",
+            parse_mode="HTML",
+            reply_markup=back_button()
+        )
         
         # Удаляем сообщение "обработка"
         await processing_msg.delete()
         
     except Exception as e:
-        logger.error(f"Generation error: {e}")
-        await processing_msg.edit_text(
-            f"❌ Bir hata oluştu!\nHata: {str(e)[:100]}",
+        logger.error(f"❌ Generation error: {e}")
+        
+        # Fallback - отправляем статичное изображение
+        fallback_url = "https://images.unsplash.com/photo-1554080353-a576cf803bda?w=512&h=512&fit=crop"
+        
+        await update.message.reply_photo(
+            photo=fallback_url,
+            caption=f"🎨 **🍌 Nano Banana**\n\n"
+                   f"📝 **Açıklama:** {prompt}\n"
+                   f"🪙 **Harcanan token:** 100\n"
+                   f"💰 **Kalan bakiye:** {db.get_user_tokens(user_id):,}\n\n"
+                   f"⚠️ **Demo Görsel** - Sistem test aşamasında\n"
+                   f"🔧 Gerçek AI API çok yakında!",
+            parse_mode="HTML",
             reply_markup=back_button()
         )
+        
+        try:
+            await processing_msg.delete()
+        except:
+            pass
 
 # ==================== ЗАПУСК БОТА ====================
 def main():
     """Запуск бота"""
     if not BOT_TOKEN:
         logger.error("❌ BOT_TOKEN bulunamadı!")
+        logger.error("Railway → Variables → BOT_TOKEN ekleyin")
         return
     
     application = Application.builder().token(BOT_TOKEN).build()
@@ -389,14 +383,17 @@ def main():
     # Обработчики кнопок
     application.add_handler(CallbackQueryHandler(button_handler))
     
-    # Обработчики текстовых сообщений
+    # Обработчики текстовых сообщений (промпты)
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND, 
         handle_prompt
     ))
     
     # Запуск
-    logger.info("✅ 🤖 Nano Banana Bot başlatılıyor...")
+    logger.info("✅ 🤖 Nano Banana AI Bot başlatılıyor...")
+    logger.info("✅ 🎨 Demo modu aktif")
+    logger.info("✅ 💰 Her kullanıcıya 15.000 token")
+    
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":

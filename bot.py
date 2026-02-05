@@ -1,10 +1,5 @@
 import os
-import requests
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -14,14 +9,11 @@ from telegram.ext import (
     filters
 )
 
-# ====== НАСТРОЙКИ ======
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 START_BALANCE = 15000
+users = {}
 
-
-# ====== КНОПКИ ======
 
 def main_keyboard():
     return InlineKeyboardMarkup([
@@ -33,14 +25,6 @@ def main_keyboard():
         [InlineKeyboardButton("💳 Paket Al", callback_data="buy")]
     ])
 
-
-# ====== ПАМЯТЬ (ВРЕМЕННО) ======
-# Потом заменим на базу данных
-
-users = {}
-
-
-# ====== START ======
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -59,13 +43,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Ne yapmak istiyorsun?
 """
 
-    await update.message.reply_text(
-        text,
-        reply_markup=main_keyboard()
-    )
+    await update.message.reply_text(text, reply_markup=main_keyboard())
 
-
-# ====== КНОПКИ ======
 
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -101,18 +80,13 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "buy":
 
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💎 Starter ₺49", url="https://example.com/pay1")],
-            [InlineKeyboardButton("🔥 Pro ₺119", url="https://example.com/pay2")],
-            [InlineKeyboardButton("👑 Ultra ₺299", url="https://example.com/pay3")]
+            [InlineKeyboardButton("💎 Starter ₺49", url="https://example.com")],
+            [InlineKeyboardButton("🔥 Pro ₺119", url="https://example.com")],
+            [InlineKeyboardButton("👑 Ultra ₺299", url="https://example.com")]
         ])
 
-        await q.message.reply_text(
-            "💳 Paket seç:",
-            reply_markup=keyboard
-        )
+        await q.message.reply_text("💳 Paket seç:", reply_markup=keyboard)
 
-
-# ====== ОБРАБОТКА ТЕКСТА ======
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -132,17 +106,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     prompt = update.message.text
 
-    users[user_id] -= 50  # списание токенов
+    users[user_id] -= 50
 
     await update.message.reply_text("⏳ İşleniyor...")
 
-    # === ВРЕМЕННО: заглушка ===
     result = f"✅ ({mode.upper()}) Sonuç:\n\n{prompt}"
 
     await update.message.reply_text(result)
 
-
-# ====== ЗАПУСК ======
 
 def main():
 
